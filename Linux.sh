@@ -1,5 +1,7 @@
 #!/bin/bash
 
+#this is a random test
+
 Legend () {
     printf "Back ground colour ref:\n"
     printf "Low importance\n"
