@@ -195,20 +195,6 @@ SensitiveFilesChecks() {
             fi
         fi
     done <<< "$IDRSAFILES"
-    printf "\e[3m\e[34m=====Searching For Potential Flag Files=====\e[0m\n"
-    FLAGFILES=$(find / -iregex ".*flags*[^/]*$" 2>&1)
-    while IFS= read -r file
-    do
-        file=$(echo "$file" 2>&1 | grep -iEv "snap|metasploit|seclists|games|steam")
-        FILENAME=$(echo "$file" 2>&1 | grep -oE "[^/]*$" | grep -E "^\.*((?:[a-zA-Z0-9]+-)*[a-zA-Z0-9]+)(\.(txt))?$" 2>/dev/null)
-        if ! [ "${#FILENAME}" = "0" ]
-        then
-            if [ -r "$file" ]
-            then
-                printf "\e[35m$file\e[0m\n"
-            fi
-        fi
-    done <<< "$FLAGFILES"
 }
 
 GTFOBins () {
@@ -224,7 +210,7 @@ GTFOBins () {
             printf "%*s" $SPACES ""
             printf "\xE2\x9D\x8C\e[0m\n"
         else
-            printf "\e[48;5;210m\e[4m\e[1m\e[1m\e[92m$FILEPATH"
+            printf "\e[48;5;210m\e[4m\e[1m\e[1m\e[92m$FILEPATH\e[0m\e[92m"
             printf "%*s" $SPACES ""
             printf "\xE2\x9C\x94\e[0m\n"
         fi
@@ -253,6 +239,72 @@ SUIDKernelCalls () {
     fi
 }
 
+CrontabChecks() {
+    printf "\e[1m\e[93m===============Checking Cron tab===============\e[0m\n"
+    if [ -w "/etc/crontab" ]
+    then
+        CRONTAB="writeable"
+        SPACES=$((100 - ${#CRONTAB}))
+        printf "\e[92m\e[48;5;124m\e[4m\e[1m$CRONTAB\e[0m\e[92m"
+        printf "%*s" $SPACES ""
+        printf "\xE2\x9C\x94\e[0m\n"
+    else
+        CRONTAB="not writeable"
+        SPACES=$((100 - ${#CRONTAB}))
+        printf "\e[91m$CRONTAB"
+        printf "%*s" $SPACES ""
+        printf "\xE2\x9D\x8C\e[0m\n"
+    fi
+
+    if [ -r "/etc/crontab" ]
+    then
+        CRONTAB="readable"
+        SPACES=$((100 - ${#CRONTAB}))
+        printf "\e[92m\e[48;5;11m\e[4m\e[1m$CRONTAB\e[0m\e[92m"
+        printf "%*s" $SPACES ""
+        printf "\xE2\x9C\x94\e[0m\n"
+        echo "cron contents:"
+        printf "\e[35m"
+        cat "/etc/crontab"
+        printf "\e[0m"
+        printf "\e[1m\e[93m==============Checking Cron jobs===============\e[0m\n"
+        CRONTABCAT=$(cat /etc/crontab 2>&1  | grep -v "#" | grep -vE "SHELL|PATH" | grep "root")
+        echo "The following jobs are executed as root"
+        echo "# m h dom mon dow user  command"
+        printf "\e[48;5;11m\e[4m\e[1m$CRONTABCAT\e[0m\n"
+        CRONTABSCRIPTS=$(echo "$CRONTABCAT" | grep -Eo "root.*$" | sed "s/root//1" | sed "s/	//g")
+        if ! [ "${#CRONTABSCRIPTS}" = "0" ]
+        then
+            printf "\e[1m\e[93m=========Checking Root Cron job scripts=========\e[0m\n"
+            while IFS= read -r script
+            do
+                if [ -w "$script" ]
+                then
+                    SHADOW="$script is writeable and called by cron as root"
+                    SPACES=$((100 - ${#SHADOW}))
+                    printf "\e[92m\e[48;5;124m\e[4m\e[1m$SHADOW\e[0m\e[92m"
+                    printf "%*s" $SPACES ""
+                    printf "\xE2\x9C\x94\e[0m\n"
+                else
+                    if [ -r "$script" ]
+                    then
+                        echo "$script contents:"
+                        printf "\e[48;5;210m\e[4m\e[1m"
+                        cat "$script"
+                        printf "\e[0m"
+                    fi
+                fi
+            done <<< "$CRONTABSCRIPTS"
+        fi
+    else
+        CRONTAB="not readable"
+        SPACES=$((100 - ${#CRONTAB}))
+        printf "\e[91m$CRONTAB"
+        printf "%*s" $SPACES ""
+        printf "\xE2\x9D\x8C\e[0m\n"
+    fi
+}
+
 Legend
 
 echo
@@ -276,6 +328,8 @@ echo
 echo
 
 printf "\e[1m=====Checking Possible Privilege Escalation====\e[0m\n"
+
+CrontabChecks
 
 printf "\e[1m\e[93m==============Checking SUID Files==============\e[0m\n"
 
